@@ -1,0 +1,1 @@
+Real-time, Go-based, AI-powered chatbot application using SSE
