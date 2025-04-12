@@ -83,9 +83,11 @@ Creates a new chat session.
 
 ```json
 {
-  "id": "chat_123456789",
+  "id": "65f3a2c9b8e04e7a12345678",
   "title": "Optional title for the chat",
-  "created_at": "2025-03-27T10:32:15Z"
+  "created_at": "2025-03-27T10:32:15Z",
+  "updated_at": "2025-03-27T10:32:15Z",
+  "message_count": 0
 }
 ```
 
@@ -97,25 +99,41 @@ GET /api/v1/chats
 
 Returns a list of all chat sessions.
 
+**Query Parameters:**
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| page | Page number | 1 |
+| page_size | Number of chats per page | 10 |
+
 **Response:**
 
 ```json
 {
   "chats": [
     {
-      "id": "chat_123456789",
+      "id": "65f3a2c9b8e04e7a12345678",
       "title": "First conversation",
       "created_at": "2025-03-27T10:32:15Z",
-      "last_message_at": "2025-03-27T10:45:30Z"
+      "updated_at": "2025-03-27T10:45:30Z",
+      "last_message_at": "2025-03-27T10:45:30Z",
+      "message_count": 5
     },
     {
-      "id": "chat_987654321",
+      "id": "65f3a2c9b8e04e7a87654321",
       "title": "Another conversation",
       "created_at": "2025-03-27T11:12:22Z",
-      "last_message_at": "2025-03-27T11:15:45Z"
+      "updated_at": "2025-03-27T11:15:45Z",
+      "last_message_at": "2025-03-27T11:15:45Z",
+      "message_count": 2
     }
   ],
-  "count": 2
+  "pagination": {
+    "total": 2,
+    "page": 1,
+    "page_size": 10,
+    "pages": 1
+  }
 }
 ```
 
@@ -131,9 +149,39 @@ Returns details of a specific chat session.
 
 ```json
 {
-  "id": "chat_123456789",
+  "id": "65f3a2c9b8e04e7a12345678",
   "title": "First conversation",
   "created_at": "2025-03-27T10:32:15Z",
+  "updated_at": "2025-03-27T10:45:30Z",
+  "last_message_at": "2025-03-27T10:45:30Z",
+  "message_count": 5
+}
+```
+
+#### Update a chat
+
+```
+PUT /api/v1/chats/{chat_id}
+```
+
+Updates a chat session's title.
+
+**Request:**
+
+```json
+{
+  "title": "New chat title"
+}
+```
+
+**Response:**
+
+```json
+{
+  "id": "65f3a2c9b8e04e7a12345678",
+  "title": "New chat title",
+  "created_at": "2025-03-27T10:32:15Z",
+  "updated_at": "2025-03-27T10:46:30Z",
   "last_message_at": "2025-03-27T10:45:30Z",
   "message_count": 5
 }
@@ -151,7 +199,6 @@ Deletes a chat session and all associated messages.
 
 ```json
 {
-  "success": true,
   "message": "Chat deleted successfully"
 }
 ```
@@ -171,6 +218,7 @@ Sends a new message in a specific chat session.
 ```json
 {
   "content": "Hello, how can you help me today?",
+  "role": "user",
   "type": "text"
 }
 ```
@@ -179,11 +227,11 @@ Sends a new message in a specific chat session.
 
 ```json
 {
-  "id": "msg_123456789",
-  "chat_id": "chat_123456789",
+  "id": "65f3b1d7c8e04e7a98765432",
+  "chat_id": "65f3a2c9b8e04e7a12345678",
   "content": "Hello, how can you help me today?",
-  "type": "text",
   "role": "user",
+  "type": "text",
   "created_at": "2025-03-27T10:45:30Z"
 }
 ```
@@ -200,8 +248,8 @@ Returns messages from a specific chat session.
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| limit | Maximum number of messages to return | 50 |
-| before | Return messages before this ID | - |
+| page | Page number | 1 |
+| page_size | Number of messages per page | 20 |
 
 **Response:**
 
@@ -209,23 +257,65 @@ Returns messages from a specific chat session.
 {
   "messages": [
     {
-      "id": "msg_123456789",
-      "chat_id": "chat_123456789",
+      "id": "65f3b1d7c8e04e7a98765432",
+      "chat_id": "65f3a2c9b8e04e7a12345678",
       "content": "Hello, how can you help me today?",
-      "type": "text",
       "role": "user",
+      "type": "text",
       "created_at": "2025-03-27T10:45:30Z"
     },
     {
-      "id": "msg_987654321",
-      "chat_id": "chat_123456789",
+      "id": "65f3b1e2c8e04e7a98765433",
+      "chat_id": "65f3a2c9b8e04e7a12345678",
       "content": "I'm here to help you with any questions or tasks you have. What would you like assistance with today?",
-      "type": "text",
       "role": "assistant",
+      "type": "text",
       "created_at": "2025-03-27T10:45:35Z"
     }
   ],
-  "has_more": false
+  "pagination": {
+    "total": 2,
+    "page": 1,
+    "page_size": 20,
+    "pages": 1
+  }
+}
+```
+
+#### Get a specific message
+
+```
+GET /api/v1/messages/{message_id}
+```
+
+Returns details of a specific message.
+
+**Response:**
+
+```json
+{
+  "id": "65f3b1d7c8e04e7a98765432",
+  "chat_id": "65f3a2c9b8e04e7a12345678",
+  "content": "Hello, how can you help me today?",
+  "role": "user",
+  "type": "text",
+  "created_at": "2025-03-27T10:45:30Z"
+}
+```
+
+#### Delete a message
+
+```
+DELETE /api/v1/messages/{message_id}
+```
+
+Deletes a specific message.
+
+**Response:**
+
+```json
+{
+  "message": "Message deleted successfully"
 }
 ```
 
