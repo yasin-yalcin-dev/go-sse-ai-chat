@@ -29,6 +29,7 @@ type Config struct {
 
 // ServerConfig contains server configuration
 type ServerConfig struct {
+	Environment      string
 	Port             int
 	ReadTimeout      time.Duration
 	WriteTimeout     time.Duration
@@ -76,6 +77,7 @@ func Load() (*Config, error) {
 
 	cfg := &Config{
 		Server: ServerConfig{
+			Environment:      getEnv("ENVIRONMENT", "development"),
 			Port:             getEnvInt("SERVER_PORT", 8080),
 			ReadTimeout:      getEnvDuration("SERVER_READ_TIMEOUT", 10*time.Second),
 			WriteTimeout:     getEnvDuration("SERVER_WRITE_TIMEOUT", 30*time.Second),

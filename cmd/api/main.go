@@ -12,39 +12,47 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/yasin-yalcin-dev/go-sse-ai-chat/internal/config"
+	"github.com/yasin-yalcin-dev/go-sse-ai-chat/pkg/logger"
 )
 
 func main() {
 	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("Failed to load configuration: %v", err)
+		fmt.Printf("Failed to load configuration: %v\n", err)
+		os.Exit(1)
 	}
 
-	// Setup router with Gin
-	router := setupRouter()
+	// Initialize logger
+	logger.Initialize(cfg.LogLevel, cfg.Server.Environment == "development")
+	defer logger.Sync()
 
-	// Configure HTTP server
+	logger.Info("Starting server...")
+
+	// Setup router with Gin
+	router := setupRouter(cfg)
+
+	// Configure HTTP server with improved settings
 	server := &http.Server{
-		Addr:         fmt.Sprintf(":%d", cfg.Server.Port),
-		Handler:      router,
-		ReadTimeout:  cfg.Server.ReadTimeout,
-		WriteTimeout: cfg.Server.WriteTimeout,
+		Addr:           fmt.Sprintf(":%d", cfg.Server.Port),
+		Handler:        router,
+		ReadTimeout:    cfg.Server.ReadTimeout,
+		WriteTimeout:   cfg.Server.WriteTimeout,
+		IdleTimeout:    2 * cfg.Server.ReadTimeout, // A good default is 2x ReadTimeout
+		MaxHeaderBytes: 1 << 20,                    // 1 MB
 	}
 
 	// Start server in a goroutine
 	go func() {
-		log.Printf("Server starting on port %d", cfg.Server.Port)
+		logger.Infof("Server listening on port %d", cfg.Server.Port)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Server failed to start: %v", err)
+			logger.Fatalf("Failed to start server: %v", err)
 		}
 	}()
 
@@ -52,16 +60,16 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	log.Println("Shutting down server...")
+	logger.Info("Shutting down server...")
 
 	// Create a deadline for server shutdown
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), cfg.Server.ShutdownTimeout)
 	defer cancel()
 
 	// Attempt graceful shutdown
 	if err := server.Shutdown(ctx); err != nil {
-		log.Printf("Server forced to shutdown: %v", err)
+		logger.Errorf("Server forced to shutdown: %v", err)
 	}
 
-	log.Println("Server exited")
+	logger.Info("Server exited")
 }
