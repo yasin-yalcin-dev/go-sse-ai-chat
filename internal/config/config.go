@@ -43,12 +43,14 @@ type ServerConfig struct {
 
 // MongoDBConfig contains MongoDB configuration
 type MongoDBConfig struct {
-	URI               string
-	Database          string
-	Timeout           time.Duration
-	MaxPoolSize       uint64
-	ConnectRetryCount int
-	ConnectRetryDelay time.Duration
+	URI                string
+	Database           string
+	Timeout            time.Duration
+	MaxPoolSize        uint64
+	ConnectRetryCount  int
+	ConnectRetryDelay  time.Duration
+	CollectionChats    string
+	CollectionMessages string
 }
 
 // SSEConfig contains Server-Sent Events configuration
@@ -89,12 +91,14 @@ func Load() (*Config, error) {
 			MaxPageSize:      getEnvInt("SERVER_MAX_PAGE_SIZE", 100),
 		},
 		MongoDB: MongoDBConfig{
-			URI:               getEnv("MONGODB_URI", "mongodb://localhost:27017/sse-chat"),
-			Database:          getEnv("MONGODB_DATABASE", "sse-chat"),
-			Timeout:           getEnvDuration("MONGODB_TIMEOUT", 10*time.Second),
-			MaxPoolSize:       uint64(getEnvInt("MONGODB_MAX_POOL_SIZE", 100)),
-			ConnectRetryCount: getEnvInt("MONGODB_CONNECT_RETRY_COUNT", 5),
-			ConnectRetryDelay: getEnvDuration("MONGODB_CONNECT_RETRY_DELAY", 3*time.Second),
+			URI:                getEnv("MONGODB_URI", "mongodb://localhost:27017/sse-chat"),
+			Database:           getEnv("MONGODB_DATABASE", "sse-chat"),
+			Timeout:            getEnvDuration("MONGODB_TIMEOUT", 10*time.Second),
+			MaxPoolSize:        uint64(getEnvInt("MONGODB_MAX_POOL_SIZE", 100)),
+			ConnectRetryCount:  getEnvInt("MONGODB_CONNECT_RETRY_COUNT", 5),
+			ConnectRetryDelay:  getEnvDuration("MONGODB_CONNECT_RETRY_DELAY", 3*time.Second),
+			CollectionChats:    getEnv("MONGODB_COLLECTION_CHATS", "chats"),
+			CollectionMessages: getEnv("MONGODB_COLLECTION_MESSAGES", "messages"),
 		},
 		SSE: SSEConfig{
 			MaxClients:        getEnvInt("SSE_MAX_CLIENTS", 1000),

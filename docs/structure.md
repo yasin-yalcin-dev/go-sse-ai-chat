@@ -2,54 +2,64 @@
 
 This document outlines the recommended folder structure and architectural organization for the Go SSE AI Chat project.
 
-## Directory Structure
+## Directory Structure (Updated)
 
 ```
 go-sse-ai-chat/
 ├── cmd/
-│   └── server/
-│       └── main.go         # Application entry point
+│   └── api/
+│       ├── main.go         # Application entry point
+│       └── routes.go       # API route configuration
 ├── internal/               # Private application code
-│   ├── api/                # API handlers
-│   │   ├── chat.go         # Chat endpoint handlers
-│   │   ├── health.go       # Health check endpoint
-│   │   ├── middleware/     # Middleware components
-│   │   └── routes.go       # API route definitions
 │   ├── config/             # Configuration handling
 │   │   └── config.go       # Configuration loader
 │   ├── db/                 # Database layer
-│   │   ├── models/         # Database models
-│   │   └── repository/     # Data access repositories
-│   ├── ai/                 # AI service integration
-│   │   ├── openai.go       # OpenAI API client
-│   │   ├── anthropic.go    # Anthropic API client
-│   │   └── service.go      # AI service interface
-│   ├── sse/                # SSE implementation
-│   │   ├── client.go       # SSE client connection
-│   │   ├── broker.go       # SSE message broker
-│   │   └── handler.go      # SSE request handler
-│   └── domain/             # Core domain logic
-│       ├── chat.go         # Chat domain logic
-│       └── message.go      # Message domain logic
+│   │   └── mongodb/        # MongoDB implementation 
+│   │       ├── connection.go  # Connection manager
+│   │       ├── client.go      # DB client utilities
+│   │       ├── options.go     # DB options
+│   │       └── indexes.go     # Indexes management
+│   ├── handlers/           # HTTP request handlers
+│   │   ├── handler.go      # Base handler
+│   │   ├── chat_handler.go # Chat endpoints
+│   │   ├── message_handler.go # Message endpoints
+│   │   └── system_handler.go  # System endpoints
+│   ├── middleware/         # Middleware components
+│   │   ├── cors.go         # CORS middleware
+│   │   ├── logger.go       # Logging middleware
+│   │   └── error.go        # Error handling middleware
+│   ├── models/             # Data models
+│   │   ├── chat.go         # Chat model
+│   │   ├── message.go      # Message model
+│   │   └── dto/            # Data Transfer Objects
+│   │       ├── common.go   # Common DTOs
+│   │       ├── chat_dto.go # Chat DTOs
+│   │       └── message_dto.go # Message DTOs
+│   ├── repository/         # Repository interfaces
+│   │   ├── repository.go   # Repository definitions
+│   │   └── mongodb/       # MongoDB implementations
+│   │       ├── chat_repository.go    # Chat repo
+│   │       └── message_repository.go # Message repo
+│   └── services/           # Business logic
+│       ├── chat_service.go  # Chat operations
+│       └── message_service.go # Message operations
 ├── pkg/                    # Public library code
+│   ├── errors/             # Error handling utilities
+│   │   └── errors.go       # Custom error types
 │   ├── logger/             # Logging utilities
+│   │   └── logger.go       # Logger implementation
 │   └── utils/              # Shared utilities
 ├── static/                 # Static frontend assets
 │   ├── css/
 │   ├── js/
 │   └── index.html
-├── tests/                  # Test files
-│   ├── integration/
-│   └── unit/
 ├── docs/                   # Documentation
-│   ├── issues.md
-│   ├── structure.md
-│   ├── api.md
-│   └── deployment.md
-├── scripts/                # Build and deployment scripts
+│   ├── issues.md           # Project issues
+│   ├── progress.md         # Development progress
+│   ├── structure.md        # Project structure
+│   ├── api.md              # API documentation
+│   └── setup.md            # Setup instructions
 ├── .env.example            # Example environment variables
-├── Dockerfile              # Docker configuration
-├── docker-compose.yml      # Docker Compose configuration
 ├── go.mod                  # Go module definition
 ├── go.sum                  # Go module checksums
 └── README.md               # Project overview and instructions
@@ -59,99 +69,146 @@ go-sse-ai-chat/
 
 The application follows a clean architecture pattern with distinct layers:
 
-1. **Presentation Layer** (`api/`) - Handles HTTP requests and API endpoints
-2. **Domain Layer** (`domain/`) - Contains the core business logic
-3. **Data Access Layer** (`db/repository/`) - Handles database operations
-4. **Infrastructure Layer** (`sse/`, `ai/`, `config/`) - Provides technical capabilities 
+1. **Presentation Layer** (`handlers/`) - Handles HTTP requests and API endpoints
+2. **Domain Layer** (`models/`, `services/`) - Contains business logic and data structures
+3. **Data Access Layer** (`repository/`) - Handles database operations
+4. **Infrastructure Layer** (`db/`, `middleware/`, `config/`) - Provides technical capabilities 
 
-## Key Components
+## Architectural Changes
 
-### HTTP Server (Gin)
+### MongoDB Integration
+
+The application now uses MongoDB as its primary data store with the following components:
+
+1. **Connection Manager**: Handles connections to MongoDB with error handling, retries, and connection pooling.
+2. **Repository Pattern**: Abstracts database operations behind repository interfaces.
+3. **Data Models**: Domain models with proper BSON/JSON mappings.
+4. **DTO Pattern**: Data Transfer Objects for API requests/responses.
+5. **Service Layer**: Business logic abstraction over repositories.
+6. **Optimized Indexes**: Performance-tuned indexes for common queries.
+
+### Database Layer
+
+The repository pattern is now fully implemented:
+
+```go
+// Repository interfaces
+type ChatRepository interface {
+    Create(ctx context.Context, chat *models.Chat) error
+    FindByID(ctx context.Context, id primitive.ObjectID) (*models.Chat, error)
+    FindAll(ctx context.Context, limit, offset int) ([]*models.Chat, error)
+    Update(ctx context.Context, chat *models.Chat) error
+    Delete(ctx context.Context, id primitive.ObjectID) error
+    IncrementMessageCount(ctx context.Context, id primitive.ObjectID) error
+    CountAll(ctx context.Context) (int64, error)
+}
+
+type MessageRepository interface {
+    Create(ctx context.Context, message *models.Message) error
+    FindByID(ctx context.Context, id primitive.ObjectID) (*models.Message, error)
+    FindByChatID(ctx context.Context, chatID primitive.ObjectID, limit, offset int) ([]*models.Message, error)
+    CountByChatID(ctx context.Context, chatID primitive.ObjectID) (int64, error)
+    Delete(ctx context.Context, id primitive.ObjectID) error
+    DeleteByChatID(ctx context.Context, chatID primitive.ObjectID) error
+}
+```
+
+### Service Layer
+
+The service layer implements business logic and handles the conversion between string IDs and ObjectIDs:
+
+```go
+// Chat service example
+type ChatService interface {
+    CreateChat(ctx context.Context, title string) (*models.Chat, error)
+    GetChatByID(ctx context.Context, id string) (*models.Chat, error)
+    ListChats(ctx context.Context, page, pageSize int) ([]*models.Chat, int64, error)
+    UpdateChat(ctx context.Context, id string, title string) (*models.Chat, error)
+    DeleteChat(ctx context.Context, id string) error
+}
+```
+
+### Key Components
+
+#### HTTP Server (Gin)
 
 The application uses Gin as the HTTP server framework for handling routes and middleware.
 
 ```go
-// Example route setup with Gin
-func SetupRouter(config Config) *gin.Engine {
-    router := gin.Default()
-    
-    router.GET("/health", api.HealthCheck)
-    router.POST("/api/chat", api.HandleChatMessage)
-    router.GET("/api/events", sse.HandleSSEConnection)
-    
-    return router
+// API route groups organization
+apiV1 := router.Group("/api/v1")
+{
+    // Chat routes
+    chatRoutes := apiV1.Group("/chats")
+    {
+        chatRoutes.GET("", handler.ListChats)
+        chatRoutes.POST("", handler.CreateChat)
+        chatRoutes.GET("/:id", handler.GetChat)
+        chatRoutes.PUT("/:id", handler.UpdateChat)
+        chatRoutes.DELETE("/:id", handler.DeleteChat)
+
+        // Message routes (nested under chat)
+        chatRoutes.GET("/:id/messages", handler.GetMessages)
+        chatRoutes.POST("/:id/messages", handler.CreateMessage)
+    }
+
+    // Individual message routes
+    messages := apiV1.Group("/messages")
+    {
+        messages.GET("/:id", handler.GetMessage)
+        messages.DELETE("/:id", handler.DeleteMessage)
+    }
 }
 ```
 
-### SSE Implementation
+#### DTO Pattern
 
-The SSE implementation consists of several core components:
-
-1. **Client** - Represents a connected client with a unique ID
-2. **Broker** - Manages connected clients and dispatches messages
-3. **Handler** - HTTP handler that establishes and maintains SSE connections
+The Data Transfer Object pattern separates API contracts from domain models:
 
 ```go
-// Example SSE client structure
-type Client struct {
-    ID       string
-    Messages chan []byte
-}
-
-// Example broker structure
-type Broker struct {
-    clients    map[string]*Client
-    register   chan *Client
-    unregister chan *Client
-    messages   chan *Message
+// Example DTO for chat responses
+type ChatResponse struct {
+    ID            string `json:"id"`
+    Title         string `json:"title"`
+    CreatedAt     string `json:"created_at"`
+    UpdatedAt     string `json:"updated_at"`
+    LastMessageAt string `json:"last_message_at,omitempty"`
+    MessageCount  int    `json:"message_count"`
 }
 ```
 
-### Database Layer
+#### Middleware Stack
 
-MongoDB is used for data persistence with a repository pattern:
-
-```go
-// Example repository interface
-type ChatRepository interface {
-    CreateChat(ctx context.Context, chat *models.Chat) (string, error)
-    GetChatByID(ctx context.Context, id string) (*models.Chat, error)
-    SaveMessage(ctx context.Context, chatID string, message *models.Message) error
-    GetMessagesByChatID(ctx context.Context, chatID string) ([]*models.Message, error)
-}
-```
-
-### AI Service Integration
-
-The AI integration is designed with an interface to support multiple providers:
+The application uses a layered middleware approach:
 
 ```go
-// Example AI service interface
-type AIService interface {
-    GenerateResponse(ctx context.Context, prompt string, stream bool) (chan string, error)
-    CompleteStream(ctx context.Context, messages []Message) (chan string, error)
-}
+// Middleware stack
+router.Use(middleware.CORSMiddleware(cfg.Server.AllowedOrigins))
+router.Use(middleware.LoggerMiddleware())
+router.Use(middleware.ErrorHandlerMiddleware())
 ```
 
 ## Data Flow
 
-1. Client sends a message via HTTP POST to `/api/chat`
-2. Server processes the request and stores the message in MongoDB
-3. Server sends the message to the AI service for processing
-4. AI service streams the response back to the server
-5. The SSE broker sends message chunks to the connected client in real-time
-6. Client renders the response as it arrives
+1. Client sends a request to a handler endpoint
+2. Handler parses the request and converts it to domain parameters
+3. Service layer performs business logic and calls repositories
+4. Repository interacts with MongoDB
+5. Service processes the results
+6. Handler converts domain objects to DTOs and returns response
 
 ## Configuration
 
 The application uses environment variables for configuration, which can be set via a `.env` file, environment variables, or command-line flags:
 
 ```
-# Example environment variables
-SERVER_PORT=8080
+# MongoDB Configuration
 MONGODB_URI=mongodb://localhost:27017/sse-chat
-AI_PROVIDER=openai
-OPENAI_API_KEY=your-api-key
+MONGODB_DATABASE=sse-chat
+MONGODB_TIMEOUT=10s
+MONGODB_MAX_POOL_SIZE=100
+MONGODB_CONNECT_RETRY_COUNT=5
+MONGODB_CONNECT_RETRY_DELAY=3s
 ```
 
 ## Deployment Options

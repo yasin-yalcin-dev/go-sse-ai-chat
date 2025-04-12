@@ -1,11 +1,10 @@
 /*
-** ** ** ** ** **
-
-	\ \ / / \ \ / /
-	 \ V /   \ V /
-	  | |     | |
-	  |_|     |_|
-	 Yasin   Yalcin
+ ** ** ** ** ** **
+  \ \ / / \ \ / /
+   \ V /   \ V /
+    | |     | |
+    |_|     |_|
+   Yasin   Yalcin
 */
 
 package middleware
