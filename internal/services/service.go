@@ -12,6 +12,7 @@ package services
 import (
 	"context"
 
+	"github.com/yasin-yalcin-dev/go-sse-ai-chat/internal/ai"
 	"github.com/yasin-yalcin-dev/go-sse-ai-chat/internal/models"
 )
 
@@ -30,4 +31,5 @@ type MessageService interface {
 	GetMessageByID(ctx context.Context, id string) (*models.Message, error)
 	GetChatMessages(ctx context.Context, chatID string, page, pageSize int) ([]*models.Message, int64, error)
 	DeleteMessage(ctx context.Context, id string) error
+	GetMessageContext(ctx context.Context, chatID string, maxMessages int) ([]ai.AIMessage, error)
 }
