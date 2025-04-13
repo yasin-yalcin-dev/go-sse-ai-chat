@@ -12,6 +12,7 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -45,6 +46,14 @@ func (h *SSEHandler) HandleStream(c *gin.Context) {
 		return
 	}
 
+	// Get client ID from query param (for reconnection) or generate new one
+	clientID := c.Query("client_id")
+
+	// If no client ID or invalid format, generate a new one
+	if clientID == "" || !strings.HasPrefix(clientID, chatID+"_") {
+		clientID = fmt.Sprintf("%s_%s", chatID, uuid.New().String())
+	}
+
 	// Verify the chat exists
 	chat, err := h.chatService.GetChatByID(c.Request.Context(), chatID)
 	if err != nil {
@@ -59,11 +68,17 @@ func (h *SSEHandler) HandleStream(c *gin.Context) {
 		return
 	}
 
-	// Create a unique client ID
-	clientID := fmt.Sprintf("%s_%s", chatID, uuid.New().String())
+	// Get last event ID for replay (if client is reconnecting)
+	lastEventID := c.GetHeader("Last-Event-ID")
+	isReconnection := lastEventID != ""
 
 	// Log connection attempt
-	logger.Infof("SSE connection requested for chat %s, client %s", chatID, clientID)
+	if isReconnection {
+		logger.Infof("SSE reconnection requested for chat %s, client %s, last event %s",
+			chatID, clientID, lastEventID)
+	} else {
+		logger.Infof("New SSE connection requested for chat %s, client %s", chatID, clientID)
+	}
 
 	// Create new client
 	client := sse.NewClient(clientID, c.Writer, h.broker)
@@ -79,7 +94,19 @@ func (h *SSEHandler) HandleStream(c *gin.Context) {
 
 // GetStats returns stats about SSE connections
 func (h *SSEHandler) GetStats(c *gin.Context) {
+	// Get stats per chat if chat ID is provided
+	chatID := c.Query("chat_id")
+	if chatID != "" {
+		clientCount := h.broker.GetClientsInChat(chatID)
+		c.JSON(http.StatusOK, gin.H{
+			"chat_id": chatID,
+			"clients": clientCount,
+		})
+		return
+	}
+
+	// Otherwise return total stats
 	c.JSON(http.StatusOK, gin.H{
-		"clients": h.broker.GetClientCount(),
+		"total_clients": h.broker.GetClientCount(),
 	})
 }
